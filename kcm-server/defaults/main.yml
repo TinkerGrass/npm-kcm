@@ -1,0 +1,13 @@
+---
+kcm_db_root_password: !vault |
+          PASSWDHERE
+
+kcm_db_user_password: !vault |
+          PASSWDHERE
+
+kcm_guacadmin_password: !vault |
+          PASSWDHERE
+
+kcm_saml_callback_url: https://remote.example.com
+kcm_saml_metadata_url: https://sso.example.com/saml2/metadata/XXXXXXXX
+kcm_ssl_hostname: remote.example.com

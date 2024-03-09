@@ -1,0 +1,19 @@
+version: "3.7"
+services:
+  npm:
+    container_name: npm
+    image: jc21/nginx-proxy-manager:2
+    restart: always
+    volumes:
+      - /opt/npm/npm-data:/data
+      - /opt/npm/npm-le:/etc/letsencrypt
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DISABLE_IPV6: "true"
+    healthcheck:
+      test: ["CMD", "/bin/check-health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5

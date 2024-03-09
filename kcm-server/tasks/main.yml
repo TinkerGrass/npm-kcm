@@ -1,0 +1,12 @@
+---
+- name: Gather facts if we don't have them already
+  setup:
+  when: ansible_nodename is not defined
+  tags:
+    - kcm-server
+
+- name: Include ubuntu.yml on Ubuntu hosts
+  include_tasks: ubuntu.yml
+  when: ansible_distribution | lower is search("ubuntu")
+  tags:
+    - kcm-server

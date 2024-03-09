@@ -1,0 +1,75 @@
+version: "3.7"
+
+services:
+    kcm-mysql:
+        container_name: kcm-mysql
+        image: keeper/guacamole-db-mysql:2
+        restart: always
+        volumes:
+            - kcm-mysql:/var/lib/mysql
+        environment:
+            ACCEPT_EULA: "Y"
+            MYSQL_ROOT_PASSWORD_FILE: "/run/secrets/kcm_db_root"
+            GUACAMOLE_DATABASE: "guacamole_db"
+            GUACAMOLE_USERNAME: "guacamole_user"
+            GUACAMOLE_PASSWORD_FILE: "/run/secrets/kcm_db_user"
+            GUACAMOLE_ADMIN_PASSWORD: "{{kcm_guacadmin_password}}"
+        secrets:
+            - "kcm_db_root"
+            - "kcm_db_user"
+    
+    guacd:
+        container_name: guacd
+        image: keeper/guacd:2
+        restart: always
+        environment:
+            ACCEPT_EULA: "Y"
+
+    guacamole:
+        container_name: guacamole
+        image: keeper/guacamole:2
+        restart: always
+        volumes:
+            - /opt/kcm-server/kcm-home:/var/lib/guacamole:rw
+            - /opt/kcm-server/kcm-saml/metadata.xml:/var/lib/kcm-saml/metadata.xml:ro
+        environment:
+            ACCEPT_EULA: "Y"
+            GUACD_HOSTNAME: "guacd"
+            MYSQL_HOSTNAME: "kcm-mysql"
+            MYSQL_DATABASE: "guacamole_db"
+            MYSQL_USERNAME: "guacamole_user"
+            MYSQL_PASSWORD_FILE: "/run/secrets/kcm_db_user"
+            MYSQL_AUTO_CREATE_ACCOUNTS: "true"
+            SAML_CALLBACK_URL: "{{kcm_saml_callback_url}}"
+            SAML_IDP_METADATA_URL: "file:///var/lib/kcm-saml/metadata.xml"
+            SAML_ENTITY_ID: "{{kcm_saml_callback_url}}"
+            SAML_GROUP_ATTRIBUTE: "group"
+            EXTENSION_PRIORITY: "saml"
+        secrets:
+            - "kcm_db_user"
+
+    nginx:
+        container_name: kcm-nginx
+        image: keeper/guacamole-ssl-nginx:2
+        restart: always
+        environment:
+            ACCEPT_EULA: "Y"
+            GUACAMOLE_HOSTNAME: "guacamole"
+            SSL_HOSTNAME: "{{kcm_ssl_hostname}}"
+            CERTIFICATE_FILE: "/etc/ssl/fullchain.pem"
+            PRIVATE_KEY_FILE: "/etc/ssl/privkey.pem"
+        volumes:
+            - /etc/letsencrypt/live/{{inventory_hostname}}/fullchain.pem:/etc/ssl/fullchain.pem:ro
+            - /etc/letsencrypt/live/{{inventory_hostname}}/privkey.pem:/etc/ssl/privkey.pem:ro
+        ports:
+            - "80:80"
+            - "443:443"
+
+volumes:
+    kcm-mysql:
+
+secrets:
+    kcm_db_root:
+        file: ./secrets/kcm_db_root.secret
+    kcm_db_user:
+        file: ./secrets/kcm_db_user.secret

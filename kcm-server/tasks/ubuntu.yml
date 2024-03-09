@@ -1,0 +1,97 @@
+# Install dependencies
+- name: Check installed packages
+  package_facts:
+    manager: auto
+  tags:
+    - kcm-server
+
+- name: Install haveged
+  apt:
+    name:
+      - haveged
+    update_cache: yes
+    cache_valid_time: 3600
+  tags:
+    - kcm-server
+
+# Directory operations
+- name: Make sure kcm-server exists
+  file:
+    path: /opt/kcm-server
+    state: directory
+  tags:
+    - kcm-server
+
+- name: Make sure subdirectories inside kcm-server are present
+  file:
+    path: "/opt/kcm-server/{{item}}"
+    state: directory
+    recurse: yes
+  with_items:
+    - secrets
+    - kcm-home
+    - kcm-saml
+  tags:
+    - kcm-server
+
+- name: Update permissions for secrets folder
+  file:
+    path: /opt/kcm-server/secrets
+    state: directory
+    mode: "0600"
+  tags:
+    - kcm-server
+
+- name: Retrieve SAML metadata.xml
+  get_url:
+    url: "{{kcm_saml_metadata_url}}"
+    dest: /opt/kcm-server/kcm-saml/metadata.xml
+  register: kcm_saml_metadata
+  tags:
+    - kcm-server
+
+# Copy down Templates
+- name: Create KCM MySQL Root Secret
+  template:
+    src: kcm_db_root.secret.j2
+    dest: /opt/kcm-server/secrets/kcm_db_root.secret
+    mode: "640"
+  register: kcm_db_root_secret
+  tags:
+    - kcm-server
+
+- name: Create KCM Guacamole User Secret
+  template:
+    src: kcm_db_user.secret.j2
+    dest: /opt/kcm-server/secrets/kcm_db_user.secret
+    mode: "640"
+  register: kcm_db_user_secret
+  tags:
+    - kcm-server
+
+- name: Copy down docker-compose
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/kcm-server/docker-compose.yml
+  register: docker_compose_yml
+  tags:
+    - kcm-server
+
+# Docker Tasks
+- name: Bring down kcm-server if kcm-server components changed
+  docker_compose:
+    project_src: /opt/kcm-server
+    state: absent
+  when: kcm_saml_metadata or
+        kcm_db_root_secret.changed or 
+        kcm_db_user_secret.changed or
+        docker_compose_yml.changed
+  tags:
+    - kcm-server
+
+- name: Bring up kcm-server
+  docker_compose:
+    project_src: /opt/kcm-server
+    build: yes
+  tags:
+    - kcm-server

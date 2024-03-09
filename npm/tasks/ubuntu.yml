@@ -1,0 +1,51 @@
+---
+# Install dependencies
+- name: Check installed packages
+  package_facts:
+    manager: auto
+  tags:
+    - npm
+
+# Directory operations
+- name: Make sure npm folder exists
+  file:
+    path: /opt/npm
+    state: directory
+  tags:
+    - npm
+
+- name: Make sure subdirectories inside npm are present
+  file:
+    path: "/opt/npm/{{item}}"
+    state: directory
+    recurse: yes
+  with_items:
+    - npm-data
+    - npm-le
+  tags:
+    - npm
+
+- name: Copy down docker-compose
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/npm/docker-compose.yml
+  register: docker_compose_yml
+  tags:
+    - npm
+
+# Docker Tasks
+- name: Bring down npm if npm components changed
+  command: docker compose down
+  when: docker_compose_yml.changed
+  args:
+    chdir: /opt/npm
+  tags:
+    - npm
+
+- name: Bring up npm
+  command: docker compose up -d --build
+  when: docker_compose_yml.changed
+  args:
+    chdir: /opt/npm
+  tags:
+    - npm
